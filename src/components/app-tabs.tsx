@@ -1,32 +1,31 @@
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme } from 'react-native';
+import { Tabs } from 'expo-router';
+import { Text, type ColorValue } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+
+function tabIcon(emoji: string) {
+  const Icon = ({ size }: { focused: boolean; color: ColorValue; size: number }) => (
+    <Text style={{ fontSize: size - 4 }}>{emoji}</Text>
+  );
+  Icon.displayName = `TabIcon(${emoji})`;
+  return Icon;
+}
 
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const theme = useTheme();
 
   return (
-    <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
-      <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: '#1565C0',
+        tabBarInactiveTintColor: theme.textSecondary,
+        tabBarStyle: { backgroundColor: theme.background },
+      }}>
+      <Tabs.Screen name="index" options={{ title: 'Radar', tabBarIcon: tabIcon('📡') }} />
+      <Tabs.Screen name="camera" options={{ title: 'Câmera', tabBarIcon: tabIcon('📷') }} />
+      <Tabs.Screen name="history" options={{ title: 'Histórico', tabBarIcon: tabIcon('📜') }} />
+      <Tabs.Screen name="settings" options={{ title: 'Ajustes', tabBarIcon: tabIcon('⚙️') }} />
+    </Tabs>
   );
 }

@@ -1,98 +1,169 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
+import { RadarMap } from '@/components/radar-map';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { ZoneBadge } from '@/components/zone-badge';
+import { ZONES } from '@/data/zones';
+import { useGeolocation } from '@/hooks/use-geolocation';
+import { formatCoords } from '@/services/geo';
+import { loadAnalyses, loadSettings } from '@/services/storage';
+import { speak } from '@/services/voice';
+import type { AnalysisResult } from '@/types/analysis';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+const RADAR_RADIUS_M = 2500;
 
 export default function HomeScreen() {
+  const { gps, permission, requesting, zone, hardBlocked } = useGeolocation();
+  const [analyses, setAnalyses] = useState<AnalysisResult[]>([]);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const lastAnnouncedRef = useRef<string>('');
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const [a, s] = await Promise.all([loadAnalyses(), loadSettings()]);
+        if (!active) return;
+        setAnalyses(a);
+        setVoiceEnabled(s.voiceEnabled);
+      })();
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
+  // Alerta de voz ao entrar em zona bloqueada (uma vez por zona).
+  useEffect(() => {
+    if (!zone) return;
+    const key = `${zone.id}:${zone.status}`;
+    if (key === lastAnnouncedRef.current) return;
+    lastAnnouncedRef.current = key;
+    if (zone.status === 'blocked') {
+      speak(
+        `Atenção. Você está em área protegida: ${zone.name}. A operação está bloqueada neste local. Registre um documento de permissão de lavra garimpeira válido para liberar a análise.`,
+        voiceEnabled,
+      );
+    } else if (zone.status === 'verified') {
+      speak(`Permissão verificada para ${zone.name}. Você pode operar legalmente.`, voiceEnabled);
+    }
+  }, [zone, voiceEnabled]);
+
+  const markerList = analyses.map((a) => ({
+    label: a.confidence >= 0.6 ? 'alto' : 'baixo',
+    color: a.confidence >= 0.6 ? '#F9A825' : '#90A4AE',
+    coords: { latitude: a.latitude, longitude: a.longitude },
+  }));
+
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.header}>
+          <ThemedText type="subtitle">KravenOps</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Garimpo inteligente e legal
           </ThemedText>
-        </ThemedView>
+        </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+        {requesting && (
+          <ThemedText type="small" themeColor="textSecondary">
+            Localizando via GPS…
+          </ThemedText>
+        )}
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+        {!requesting && !permission && (
+          <ThemedView type="backgroundElement" style={styles.warnCard}>
+            <ThemedText type="smallBold">Sem permissão de localização</ThemedText>
+            <ThemedText type="small">
+              O radar e o bloqueio de áreas protegidas dependem do GPS. Autorize nas configurações do sistema.
+            </ThemedText>
+          </ThemedView>
+        )}
 
-        {Platform.OS === 'web' && <WebBadge />}
+        {hardBlocked && (
+          <ThemedView type="backgroundElement" style={[styles.warnCard, styles.blockedCard]}>
+            <ThemedText style={[styles.blockedTitle, { color: '#E53935' }]}>⛔ ÁREA BLOQUEADA</ThemedText>
+            <ThemedText type="small">
+              Você está dentro de {zone?.name ?? 'área protegida'}. Operação de garimpo é proibida por lei aqui.
+              Cadastre uma PLG válida (órgão ANM/FUNAI) em Ajustes para verificar e liberar.
+            </ThemedText>
+          </ThemedView>
+        )}
+
+        {gps && (
+          <>
+            <View style={styles.zoneRow}>
+              {zone ? (
+                <>
+                  <ZoneBadge status={zone.status} />
+                  <ThemedText type="small" themeColor="textSecondary" numberOfLines={2} style={styles.zoneName}>
+                    {zone.name}
+                  </ThemedText>
+                </>
+              ) : (
+                <ZoneBadge status="free" />
+              )}
+            </View>
+
+            <View style={styles.radarWrap}>
+              <RadarMap center={gps.coords} size={296} radiusMeters={RADAR_RADIUS_M} zones={ZONES} markers={markerList} />
+            </View>
+
+            <ThemedText type="small" themeColor="textSecondary" style={styles.coords}>
+              {formatCoords(gps.coords.latitude, gps.coords.longitude)} · precisão ~{Math.round(gps.accuracyMeters)} m
+            </ThemedText>
+          </>
+        )}
+
+        <View style={styles.actions}>
+          <Pressable style={[styles.button, styles.primary]} onPress={() => router.push('/camera')}>
+            <ThemedText style={styles.primaryText}>📷 Analisar Foto</ThemedText>
+          </Pressable>
+          <Pressable style={[styles.button, styles.secondary]} onPress={() => router.push('/history')}>
+            <ThemedText>📜 Histórico</ThemedText>
+          </Pressable>
+          <Pressable style={[styles.button, styles.secondary]} onPress={() => router.push('/settings')}>
+            <ThemedText>⚙️ Ajustes</ThemedText>
+          </Pressable>
+        </View>
+
+        <View style={styles.legend}>
+          <ThemedText type="small">
+            🔴 protegida · 🟡 exige PLG · 🟢 livre — raio do radar {RADAR_RADIUS_M / 1000} km
+          </ThemedText>
+        </View>
       </SafeAreaView>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+  container: { flex: 1 },
+  safeArea: { flex: 1, paddingHorizontal: 16, gap: 12 },
+  header: { gap: 2 },
+  warnCard: {
+    borderRadius: 12,
+    padding: 12,
+    gap: 4,
   },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
+  blockedCard: { borderWidth: 2, borderColor: '#E53935' },
+  blockedTitle: { fontSize: 18, fontWeight: '800' },
+  zoneRow: { gap: 6 },
+  zoneName: { maxWidth: '100%' },
+  radarWrap: { alignItems: 'center', marginTop: 4 },
+  coords: { textAlign: 'center', fontFamily: 'monospace' },
+  actions: { gap: 8, marginTop: 8 },
+  button: {
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  primary: { backgroundColor: '#1565C0' },
+  primaryText: { color: '#fff', fontWeight: '700' },
+  secondary: { backgroundColor: 'rgba(21,101,192,0.12)' },
+  legend: { alignItems: 'center', marginTop: 4 },
 });

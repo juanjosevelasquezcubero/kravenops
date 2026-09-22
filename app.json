@@ -32,6 +32,21 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "O KravenOps usa a câmera para fotografar rochas, veios e frentes de trabalho para a análise do engenheiro de minérios.",
+          "microphonePermission": "O KravenOps usa o microfone para comandos de voz (opcional).",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O KravenOps usa sua localização para mapear áreas de garimpo e alertá-lo sobre áreas protegidas e proibidas."
+        }
       ]
     ],
     "experiments": {
