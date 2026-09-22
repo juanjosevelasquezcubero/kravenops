@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RadarMap } from '@/components/radar-map';
+import { SatelliteMap } from '@/components/satellite-map';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ZoneBadge } from '@/components/zone-badge';
@@ -20,6 +21,7 @@ export default function HomeScreen() {
   const { gps, permission, requesting, zone, hardBlocked, fixSource, fixAt } = useGeolocation();
   const [analyses, setAnalyses] = useState<AnalysisResult[]>([]);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [viewMode, setViewMode] = useState<'radar' | 'satellite'>('satellite');
   const lastAnnouncedRef = useRef<string>('');
 
   useFocusEffect(
@@ -109,8 +111,42 @@ export default function HomeScreen() {
               )}
             </View>
 
-            <View style={styles.radarWrap}>
-              <RadarMap center={gps.coords} size={296} radiusMeters={RADAR_RADIUS_M} zones={ZONES} markers={markerList} />
+            <View style={styles.modeRow}>
+              <Pressable
+                style={[styles.modeChip, viewMode === 'satellite' && styles.modeChipOn]}
+                onPress={() => setViewMode('satellite')}>
+                <ThemedText type="small" style={viewMode === 'satellite' ? styles.modeChipTextOn : undefined}>
+                  🗺️ Satélite
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.modeChip, viewMode === 'radar' && styles.modeChipOn]}
+                onPress={() => setViewMode('radar')}>
+                <ThemedText type="small" style={viewMode === 'radar' ? styles.modeChipTextOn : undefined}>
+                  📡 Radar offline
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            <View style={styles.mapWrap}>
+              {viewMode === 'satellite' ? (
+                <SatelliteMap
+                  center={gps.coords}
+                  zones={ZONES}
+                  markers={markerList.map((m) => ({ coords: m.coords, color: m.color }))}
+                  height={360}
+                />
+              ) : (
+                <View style={styles.radarWrap}>
+                  <RadarMap
+                    center={gps.coords}
+                    size={296}
+                    radiusMeters={RADAR_RADIUS_M}
+                    zones={ZONES}
+                    markers={markerList}
+                  />
+                </View>
+              )}
             </View>
 
             <ThemedText type="small" themeColor="textSecondary" style={styles.coords}>
@@ -142,7 +178,7 @@ export default function HomeScreen() {
 
         <View style={styles.legend}>
           <ThemedText type="small">
-            🔴 protegida · 🟡 exige PLG · 🟢 livre — raio do radar {RADAR_RADIUS_M / 1000} km
+            🔴 protegida · 🟡 exige PLG · 🟢 livre — satélite com internet; radar offline {RADAR_RADIUS_M / 1000} km
           </ThemedText>
         </View>
       </SafeAreaView>
@@ -163,6 +199,17 @@ const styles = StyleSheet.create({
   blockedTitle: { fontSize: 18, fontWeight: '800' },
   zoneRow: { gap: 6 },
   zoneName: { maxWidth: '100%' },
+  modeRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
+  modeChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(120,120,120,0.4)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  modeChipOn: { backgroundColor: '#1565C0', borderColor: '#1565C0' },
+  modeChipTextOn: { color: '#fff', fontWeight: '700' },
+  mapWrap: { marginTop: 8 },
   radarWrap: { alignItems: 'center', marginTop: 4 },
   coords: { textAlign: 'center', fontFamily: 'monospace' },
   actions: { gap: 8, marginTop: 8 },

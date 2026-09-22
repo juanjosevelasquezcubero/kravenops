@@ -31,6 +31,16 @@ export interface ZoneProximity {
   distanceMeters: number;
 }
 
+/** Alvo mineral do garimpo — orienta o engenheiro de minérios. */
+export type MineralTarget =
+  | 'ouro'
+  | 'diamante'
+  | 'ferro'
+  | 'terras raras'
+  | 'cobre'
+  | 'bauxita'
+  | 'geral';
+
 export interface ObservationInput {
   /** Tipo de material observado na frente de trabalho. */
   rockType: 'quartzo' | 'xisto' | 'granito' | 'sedimentar' | 'laterita' | 'outro';
@@ -43,6 +53,8 @@ export interface ObservationInput {
   alteration: boolean;
   quartz: boolean;
   estructura: 'veio' | 'bolsao' | 'disseminado' | 'solo';
+  /** Mineral que você procura. */
+  target: MineralTarget;
   /** Imagem base64 (opcional, para a IA de visão). */
   imageBase64?: string;
 }

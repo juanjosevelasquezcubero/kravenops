@@ -1,4 +1,5 @@
 import type { ObservationInput, ReferenceImage } from '@/types/analysis';
+import { targetGuide } from '@/services/mineralEngineer';
 
 const OPENVERSE_ENDPOINT = 'https://api.openverse.org/v1/images/';
 const REQUEST_TIMEOUT_MS = 8000;
@@ -13,16 +14,16 @@ const ROCK_TERM: Record<ObservationInput['rockType'], string> = {
 };
 
 /**
- * Termos de busca derivados da OBSERVAÇÃO ORIGINAL do operador.
- * São termos em inglês (Openverse indexa metadados em inglês).
+ * Termos de busca derivados da OBSERVAÇÃO ORIGINAL do operador + ALVO mineral
+ * (ex.: "gold ore quartz vein", "kimberlite"). Em inglês, pois o Openverse
+ * indexa metadados nessa língua.
  */
 export function termsFromInput(input: ObservationInput): string[] {
-  const terms = [ROCK_TERM[input.rockType] ?? 'rock geology'];
+  const terms = [...targetGuide(input.target).enTerms.slice(0, 2)];
+  terms.push(ROCK_TERM[input.rockType] ?? 'rock geology');
   if (input.sulfide) terms.push('pyrite sulfide ore');
-  if (input.alteration) terms.push('limonite oxidation alteration');
+  if (input.alteration) terms.push('oxidation alteration zone');
   if (input.veining) terms.push('mineral vein quartz');
-  if (input.estructura === 'bolsao') terms.push('ore pocket breccia');
-  if (input.estructura === 'solo') terms.push('alluvial placer gold panning');
   return terms.slice(0, 3);
 }
 

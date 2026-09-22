@@ -8,10 +8,10 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useGeolocation } from '@/hooks/use-geolocation';
 import { persistMedia, type MediaKind } from '@/services/media';
-import { runMiningAnalysis } from '@/services/mineralEngineer';
+import { MINERAL_TARGETS, runMiningAnalysis, TARGET_LABEL } from '@/services/mineralEngineer';
 import { loadSettings, saveAnalysis, saveLastFix } from '@/services/storage';
 import { speak } from '@/services/voice';
-import type { AnalysisResult, ObservationInput } from '@/types/analysis';
+import type { AnalysisResult, MineralTarget, ObservationInput } from '@/types/analysis';
 
 const ROCK_OPTIONS: ObservationInput['rockType'][] = ['quartzo', 'xisto', 'granito', 'sedimentar', 'laterita', 'outro'];
 const STRUCTURE_OPTIONS: ObservationInput['estructura'][] = ['veio', 'bolsao', 'disseminado', 'solo'];
@@ -63,6 +63,7 @@ export default function CameraScreen() {
 
   const [rockType, setRockType] = useState<ObservationInput['rockType']>('quartzo');
   const [hardness, setHardness] = useState<ObservationInput['hardness']>('media');
+  const [target, setTarget] = useState<MineralTarget>('ouro');
   const [manualDig, setManualDig] = useState(true);
   const [veining, setVeining] = useState(true);
   const [sulfide, setSulfide] = useState(false);
@@ -156,6 +157,7 @@ export default function CameraScreen() {
         alteration,
         quartz,
         estructura,
+        target,
         imageBase64: media.kind === 'photo' ? media.base64 : undefined,
       };
       const fix = {
@@ -186,7 +188,7 @@ export default function CameraScreen() {
     } finally {
       setAnalyzing(false);
     }
-  }, [gps, hardBlocked, zone, fixSource, media, rockType, hardness, manualDig, veining, sulfide, alteration, quartz, estructura]);
+  }, [gps, hardBlocked, zone, fixSource, media, rockType, hardness, manualDig, veining, sulfide, alteration, quartz, estructura, target]);
 
   const reset = useCallback(() => {
     setMedia(null);
@@ -347,6 +349,13 @@ export default function CameraScreen() {
             )}
             <ScrollView contentContainerStyle={styles.obsPanel}>
               <ThemedText type="smallBold">Observações de campo</ThemedText>
+
+              <ThemedText type="small" themeColor="textSecondary">🎯 Mineral que você procura</ThemedText>
+              <View style={styles.chipRow}>
+                {MINERAL_TARGETS.map((t) => (
+                  <Chip key={t} selected={target === t} label={TARGET_LABEL[t]} onPress={() => setTarget(t)} />
+                ))}
+              </View>
 
               <ThemedText type="small" themeColor="textSecondary">Material</ThemedText>
               <View style={styles.chipRow}>

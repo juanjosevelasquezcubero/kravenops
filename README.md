@@ -35,6 +35,10 @@ Requer **Expo Go** ou dev build. GPS, câmera e voz funcionam em aparelho físic
   sua posição atual (projeção equiretangular local, sem dependência de país). As zonas são dados
   de demonstração; carregue os shapefiles do seu país (FUNAI/ICMBio/ANM no BR; USGS/nacionais
   fora) em `src/data/zones.ts`.
+- **🗺️ Mapa satelital estilo Google Earth** — tiles de satélite da **Esri World Imagery**
+  (sem API key): arraste (pan), zoom (＋/−), botão **seguir minha posição** 🎯, polígonos das
+  zonas 🔴🟡🟢 e marcadores de análises, funcionando em qualquer lugar do mundo. Requer internet
+  para as imagens; com **📡 Radar offline** basta tocar para alternar.
 - **📡 Radar geofence** — mapa 100% offline (sem tiles, sem API key): posição GPS no centro,
   zonas 🔴🟡🟢, análises anteriores, coordenadas e precisão.
 - **🛰️ Precisão total de posição** — GPS em tempo real com `Accuracy.Highest` (atualização a cada
@@ -44,8 +48,10 @@ Requer **Expo Go** ou dev build. GPS, câmera e voz funcionam em aparelho físic
 - **⛔ Bloqueio legal automático** — dentro de área protegida o app bloqueia a análise e o
   alerta por voz; só libera com PLG registrada nos Ajustes.
 - **📷 🎬 Câmera + vídeo** — fotografe o afloramento ou grave a frente de trabalho (vídeo até
-  3 min). Marque observações (material, dureza, veios, sulfetos, alteração, estrutura) e receba
-  recomendação, rumo, profundidade de teste e confiança.
+  3 min). **Escolha o mineral-alvo** (🎯 ouro, diamante, ferro, terras raras, cobre, bauxita ou
+  geral) — o engenheiro foca a análise no que você procura. Marque observações (material,
+  dureza, veios, sulfetos, alteração, estrutura) e receba recomendação, rumo, profundidade de
+  teste e confiança.
 - **💾 Mídia em escala (imagens e vídeos enormes)** — fotos/vídeos vão para o armazenamento
   **permanente** (Documentos, à prova de limpeza de cache) e o **SQLite guarda só metadados**.
   O banco aguenta milhares de registros de mídia; gerencie espaço em Ajustes → "Mídia e
@@ -54,8 +60,12 @@ Requer **Expo Go** ou dev build. GPS, câmera e voz funcionam em aparelho físic
   similares à sua rocha (Openverse, domínio público/CC) e entrega como **referência de
   comparação** para o engenheiro de minérios. **A conclusão é SEMPRE baseada no estudo da sua
   rocha/vídeo original** — as imagens da web nunca são usadas como fonte do parecer.
-- **🤖 Engenheiro de Minérios** — prompt específico (IA de visão) com saída JSON estruturada;
-  sem internet entra a heurística offline honesta (não inventa ouro).
+- **🤖 Engenheiro de Minérios** — prompt específico (IA de visão) estruturado por mineral-alvo
+  com saída JSON; sem internet entra a heurística offline honesta (não inventa ouro) com
+  indicadores específicos de ouro, diamante, ferro, terras raras, cobre e bauxita.
+- **🖥️ Ponte IA via OpenCode (Big Pickle ou melhor)** — `tools/bridge` é um servidor local no seu
+  PC que o app chama pela rede Wi-Fi e encaminha foto + prompt para o melhor modelo de visão do
+  seu **OpenCode** (ou modo OpenAI/Gemini com chave). Veja `tools/bridge/README.md`.
 - **🔊 Voz em português** — instruções faladas na entrada de zona bloqueada e leitura da
   recomendação.
 - **📜 Histórico offline** — análises salvas em SQLite local, com foto/vídeo, referências web,
@@ -68,12 +78,14 @@ Requer **Expo Go** ou dev build. GPS, câmera e voz funcionam em aparelho físic
 ```
 src/
   app/          # rotas Expo Router (index=casa, camera, history, settings)
-  components/   # radar-map, zone-badge, tabs, themed-*
+  components/   # radar-map, satellite-map, zone-badge, tabs, themed-*
   data/         # zones.ts (polígonos de demonstração)
   hooks/        # use-geolocation (GPS + status legal da zona)
   services/     # geo (haversine/polygon), storage (SQLite KV),
-                # geolocation, mineralEngineer (IA+offline), voice
-  types/        # análise, zonas, permissões, configurações
+                # geolocation, mineralEngineer (IA+offline), voice, webResearch
+  types/        # análise, zonas, permissões, configurações, alvo mineral
+tools/
+  bridge/       # ponte local (PC): conecta o app ao OpenCode/qualquer IA de visão
 ```
 
 ## 🧹 Qualidade
@@ -87,7 +99,7 @@ npx expo-doctor    # compatibilidade de dependências
 ## 🔮 Próximas fases (visão)
 
 - Shapefiles reais (FUNAI/ICMBio/ANM SIGMINE/CPRM/USGS) + atualização por período.
-- Imagery de satélite (Sentinel-2/Landsat) com bandas de alteração mineral (óxidos/argilas).
+- Bandas de alteração mineral via Sentinel-2/Landsat (óxidos/argilas) sobre o mapa de satélite.
 - Histórico geológico e indicadores de ouro por região.
 - Comandos de voz (ditar observações).
 - Relatório PLG (geração de documento).

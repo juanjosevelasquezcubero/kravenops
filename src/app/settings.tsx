@@ -82,14 +82,30 @@ export default function SettingsScreen() {
           </ThemedView>
 
           <ThemedView type="backgroundElement" style={styles.card}>
-            <ThemedText type="smallBold">IA de visão (opcional)</ThemedText>
+            <ThemedText type="smallBold">🤖 IA de visão (opcional)</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              Configure sua API de visão/LLM para a análise avançada. Sem isso, o app usa o engenheiro de
-              minérios offline (funciona sem internet).
+              Sem IA configurada, o engenheiro de minérios offline assume (funciona sem internet e já
+              cobre ouro, diamante, ferro, terras raras, cobre, bauxita).
             </ThemedText>
+            <ThemedView type="backgroundElement" style={styles.hintBox}>
+              <ThemedText type="smallBold">3 formas de ligar a IA (mesma rede Wi-Fi):</ThemedText>
+              <ThemedText type="small">
+                1️⃣ <ThemedText type="smallBold">OpenCode no PC</ThemedText> — rode{' '}
+                <ThemedText type="smallBold">tools/bridge</ThemedText> e use o melhor modelo de visão
+                do seu OpenCode (Big Pickle ou melhor). URL: <ThemedText type="smallBold">http://IP-do-PC:4600/analyze</ThemedText>
+              </ThemedText>
+              <ThemedText type="small">
+                2️⃣ <ThemedText type="smallBold">Gemini</ThemedText> (chave grátis) — rode a ponte com
+                BRIDGE_PROVIDER=openai + GEMINI_API_KEY e use a mesma URL.
+              </ThemedText>
+              <ThemedText type="small">
+                3️⃣ <ThemedText type="smallBold">OpenAI</ThemedText> — igual, com OPENAI_API_KEY. Instruções
+                completas em <ThemedText type="smallBold">tools/bridge/README.md</ThemedText>.
+              </ThemedText>
+            </ThemedView>
             <TextInput
               style={[styles.input, { color: theme.text, backgroundColor: theme.background }]}
-              placeholder="URL da API (ex.: https://api.exemplo.com/analisar)"
+              placeholder="URL da IA (ex.: http://192.168.1.10:4600/analyze)"
               placeholderTextColor={theme.textSecondary}
               autoCapitalize="none"
               autoCorrect={false}
@@ -98,7 +114,7 @@ export default function SettingsScreen() {
             />
             <TextInput
               style={[styles.input, { color: theme.text, backgroundColor: theme.background }]}
-              placeholder="Chave da API (opcional)"
+              placeholder="Chave da API (opcional — a ponte/OpenCode guarda as credenciais)"
               placeholderTextColor={theme.textSecondary}
               autoCapitalize="none"
               autoCorrect={false}
@@ -207,6 +223,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   permitRow: { gap: 8, marginTop: 4 },
+  hintBox: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(21,101,192,0.4)',
+    padding: 10,
+    gap: 6,
+  },
   horizontalRow: { flexDirection: 'row', gap: 8 },
   flexBtn: { flex: 1 },
   dangerBtn: { borderWidth: 1, borderColor: '#E53935' },

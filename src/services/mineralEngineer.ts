@@ -30,6 +30,7 @@ CONTEXTO DA MISSÃO
 - Zona: ${ctx.zoneName ?? 'fora de zonas registradas'} — situação legal: ${ZONE_STATUS_LABEL[ctx.zoneStatus]}
 
 DADOS DE CAMPO DO OPERADOR
+- Alvo do garimpo: ${TARGET_LABEL[input.target]}
 - Tipo de material observado: ${input.rockType}
 - Dureza aparente: ${input.hardness}
 - Escavação manual possível: ${input.manualDig ? 'sim' : 'não'}
@@ -38,6 +39,9 @@ DADOS DE CAMPO DO OPERADOR
 - Alteração hidrotermal / oxidação: ${input.alteration ? 'sim' : 'não'}
 - Quartzo: ${input.quartz ? 'sim' : 'não'}
 - Estrutura do corpo: ${input.estructura}
+
+FOCO DO ALVO (${TARGET_LABEL[input.target]})
+${TARGETS[input.target].prompts.map((p) => `- ${p}`).join('\n')}
 
 O QUE ANALISAR NA FOTO
 1. Litologia e rocha encaixante (granito, xisto, arenito, laterita…).
@@ -69,6 +73,148 @@ const ROCK_LABEL: Record<ObservationInput['rockType'], string> = {
   outro: 'outro material',
 };
 
+export const MINERAL_TARGETS: ObservationInput['target'][] = [
+  'ouro',
+  'diamante',
+  'ferro',
+  'terras raras',
+  'cobre',
+  'bauxita',
+  'geral',
+];
+
+export const TARGET_LABEL: Record<ObservationInput['target'], string> = {
+  ouro: 'Ouro',
+  diamante: 'Diamante',
+  ferro: 'Ferro',
+  'terras raras': 'Terras raras',
+  cobre: 'Cobre',
+  bauxita: 'Bauxita',
+  geral: 'Geral (qualquer minério)',
+};
+
+interface TargetGuide {
+  /** Termos em inglês para a busca de referências web. */
+  enTerms: string[];
+  /** Linha extra do prompt da IA para este alvo. */
+  prompts: string[];
+  /** Indicadores offline (heurística), extraídos da observação. */
+  offlineIndicators: (input: ObservationInput) => string[];
+  /** Pontos extras de confiança offline por este alvo. */
+  scoreAdd: number;
+  /** Conselho de amostragem específico (usado quando os sinais são fortes). */
+  sampleAdvice: string;
+}
+
+const TARGETS: Record<ObservationInput['target'], TargetGuide> = {
+  ouro: {
+    enTerms: ['gold ore quartz vein', 'gold pyrite rock', 'alluvial gold placer'],
+    prompts: [
+      'Procure ouro nativo, pirita/arsenopirita, veios de quartzo com óxidos de ferro (fruta de mina / chapéu de ferro) e zonas de cisalhamento em greenstone.',
+      'Diferencie mineralização primária (veio) de aluvionar/supergênica (panela).',
+    ],
+    offlineIndicators: (i) => {
+      const out: string[] = [];
+      if (i.quartz && i.veining) out.push('veios de quartzo com vênulas — estrutura clássica de ouro');
+      if (i.sulfide) out.push('sulfetos (pirita/arsenopirita) — potenciais portadores de ouro');
+      if (i.alteration) out.push('chapéu de ferro / oxidação (fruta de mina)');
+      if (i.estructura === 'solo') out.push('aluvião/cascalho — alvo de panela para pepitas');
+      return out;
+    },
+    scoreAdd: 0,
+    sampleAdvice: 'Colete amostra de canal (canaleta) e envie para fire assay/ICP. Bata panela no aluvião.',
+  },
+  diamante: {
+    enTerms: ['kimberlite indicator minerals', 'diamond alluvial gravel', 'lamproite'],
+    prompts: [
+      'Busque rochas kimberlíticas/lamproítas, xenólitos mantélicos (granada piropo, ilmenita, diopsídio cromífero, olivina) e cascalhos de drenagem associados.',
+    ],
+    offlineIndicators: (i) => {
+      const out: string[] = [];
+      if (i.rockType === 'xisto' || i.rockType === 'granito') out.push('encaixante dura (xisto/granito) — contexto kimberlítico possível');
+      if (i.alteration) out.push('alteração em crosta azulada/esverdeada (típica de kimberlito alterado)');
+      if (i.estructura === 'solo') out.push('cascalho aluvionar de drenagem — alvo de concentração');
+      if (i.manualDig) out.push('solo escavável favorece lavagem de concentrado mineral');
+      return out;
+    },
+    scoreAdd: -1,
+    sampleAdvice: 'Faça peneiramento/lavagem de concentrado (bateia + peneira 0,5 mm) buscando minerais indicadores.',
+  },
+  ferro: {
+    enTerms: ['iron ore hematite magnetite BIF', 'laterite iron oxide', 'banded iron formation'],
+    prompts: [
+      'Identifique formações ferríferas bandadas (BIF), bandas de hematita/magnetita, itabiritos e crostas lateríticas ricas em óxidos de ferro.',
+    ],
+    offlineIndicators: (i) => {
+      const out: string[] = [];
+      if (i.alteration) out.push('óxidos de ferro (hematita/magnetita) — minério de ferro comum');
+      if (i.rockType === 'laterita') out.push('crosta laterítica ferrífera (canga)');
+      if (i.rockType === 'sedimentar') out.push('camadas sedimentares — possível BIF');
+      return out;
+    },
+    scoreAdd: 1,
+    sampleAdvice: 'Amostre a banda de minério e faça teste magnético simples (ímã) + análise de Fe total.',
+  },
+  'terras raras': {
+    enTerms: ['rare earth pegmatite monazite', 'bastnaesite carbonatite', 'REE ore'],
+    prompts: [
+      'Procure pegmatitos e carbonatitos com monazita, bastnasita, xenotima; verifique mineral pesado amarelado/marrom e possível radioatividade.',
+    ],
+    offlineIndicators: (i) => {
+      const out: string[] = [];
+      if (i.rockType === 'granito') out.push('granito/pegmatito — hospeda minerais de terras raras');
+      if (i.alteration) out.push('alteração alcalina/carbonatito — associação clássica de REE');
+      if (i.estructura === 'bolsao') out.push('bolsões pegmatíticos');
+      return out;
+    },
+    scoreAdd: -1,
+    sampleAdvice: 'Concentre por densidade (bateia) procurando monazita e avalie radioatividade com cintilômetro.',
+  },
+  cobre: {
+    enTerms: ['copper ore malachite chalcopyrite', 'chalcopyrite sulfide', 'porphyry copper'],
+    prompts: [
+      'Verifique sulfetos (calcopirita/calcosita), oxidação verde-azulada (malaquita, crisocola, azurita) e encaixantes metamáficas.',
+    ],
+    offlineIndicators: (i) => {
+      const out: string[] = [];
+      if (i.rockType === 'xisto') out.push('xisto verde/metamáfica — típica encaixante de cobre');
+      if (i.sulfide) out.push('sulfetos — possível calcopirita');
+      if (i.alteration) out.push('malaquita/crisocola (manchas verdes/azuis) — sinal direto de Cu');
+      return out;
+    },
+    scoreAdd: 1,
+    sampleAdvice: 'Amostre os pontos com manchas verdes/azuis e fareje com leitura de metais (XRF se houver).',
+  },
+  bauxita: {
+    enTerms: ['bauxite pisolitic laterite', 'aluminum ore bauxite'],
+    prompts: [
+      'Identifique lateritas alumínosas com pisólitos, perfil de intemperismo profundo sobre rochas alcalinas/basálticas.',
+    ],
+    offlineIndicators: (i) => {
+      const out: string[] = [];
+      if (i.rockType === 'laterita') out.push('laterita alumínosa — possível bauxita pisólítica');
+      if (i.alteration) out.push('perfil de intemperismo profundo (solo vermelho/amarelo)');
+      if (i.estructura === 'solo') out.push('solo argiloso avermelhado sobre basalto/rocha alcalina');
+      return out;
+    },
+    scoreAdd: 1,
+    sampleAdvice: 'Amostre pisólitos e meça espessura do horizonte bauxítico; análise química Al/Si.',
+  },
+  geral: {
+    enTerms: ['mineral deposit ore rock', 'rock outcrop geology'],
+    prompts: [
+      'Identifique qualquer evidência de mineralização metálica (óxidos, sulfetos, veios, alteração) e descreva a litologia.',
+    ],
+    offlineIndicators: () => [],
+    scoreAdd: 0,
+    sampleAdvice: 'Amostra de canal + panela para separação de pesados e ensaio multielementar (ICP).',
+  },
+};
+
+export function targetGuide(target: ObservationInput['target']): TargetGuide {
+  return TARGETS[target];
+}
+
 const DEPTH_SUGGESTION: Record<ObservationInput['estructura'], string> = {
   veio: 'Poço de teste de 1,5–3 m seguindo a direção do veio.',
   bolsao: 'Sondagem/escavação de 2–4 m no centro do bolsão.',
@@ -79,6 +225,7 @@ const DEPTH_SUGGESTION: Record<ObservationInput['estructura'], string> = {
 /** Heurística determinística offline (funciona 100% sem internet). */
 export function analyzeOffline(input: ObservationInput, ctx: AnalysisContext): AnalysisResult {
   const indicators: string[] = [];
+  const guide = TARGETS[input.target];
 
   indicators.push(ROCK_LABEL[input.rockType]);
 
@@ -87,6 +234,7 @@ export function analyzeOffline(input: ObservationInput, ctx: AnalysisContext): A
   if (input.sulfide) indicators.push('sulfeto provável — forte indicador de zona mineralizada');
   if (input.alteration) indicators.push('alteração hidrotermal/oxidação (halo)');
   if (!input.alteration && !input.sulfide) indicators.push('poucos sinais de alteração — validar com panela');
+  indicators.push(...guide.offlineIndicators(input));
 
   let score = 0;
   if (input.quartz) score += 1;
@@ -94,6 +242,7 @@ export function analyzeOffline(input: ObservationInput, ctx: AnalysisContext): A
   if (input.sulfide) score += 2;
   if (input.alteration) score += 1;
   if (input.estructura === 'veio' || input.estructura === 'bolsao') score += 1;
+  score += guide.scoreAdd;
 
   const confidence = Math.min(0.9, 0.35 + score * 0.1);
 
@@ -102,13 +251,14 @@ export function analyzeOffline(input: ObservationInput, ctx: AnalysisContext): A
   const dirs = ['N', 'NE', 'L', 'SE', 'S', 'SO', 'O', 'NO'];
   const direction = dirs[Math.round(angle / 45) % 8];
 
+  const label = TARGET_LABEL[input.target];
   let recommendation: string;
   if (score >= 4) {
-    recommendation = `Sinais fortes de zona mineralizada (${indicators.join(', ')}). Execute ${DEPTH_SUGGESTION[input.estructura]} e colete amostra de canal para ensaio (fire assay/ICP). Registre coordenadas do ponto de coleta.`;
+    recommendation = `Sinais fortes de zona mineralizada para ${label} (${indicators.join(', ')}). ${guide.sampleAdvice} Registre as coordenadas do ponto de coleta.`;
   } else if (score >= 2) {
-    recommendation = `Indicadores moderados (${indicators.join(', ')}). Vale bater panela no material de alteração e seguir o rumo ${direction} procurando o prolongamento dos veios.`;
+    recommendation = `Indicadores moderados para ${label} (${indicators.join(', ')}). ${guide.sampleAdvice} Siga o rumo ${direction} procurando o prolongamento da estrutura.`;
   } else {
-    recommendation = `Sinais fracos (${indicators.join(', ')}). Confirme com panela/travessia de 100 m no rumo ${direction} antes de investir em escavação.`;
+    recommendation = `Sinais fracos para ${label} (${indicators.join(', ')}). ${guide.sampleAdvice} Confirme com travessia de 100 m no rumo ${direction} antes de investir em escavação.`;
   }
 
   return {
