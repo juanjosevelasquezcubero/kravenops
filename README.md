@@ -31,20 +31,37 @@ Requer **Expo Go** ou dev build. GPS, câmera e voz funcionam em aparelho físic
 
 ## 📱 Funcionalidades (Fase 1 – MVP)
 
+- **🌍 Funciona em qualquer parte do mundo** — radar, GPS, análise e histórico são relativos à
+  sua posição atual (projeção equiretangular local, sem dependência de país). As zonas são dados
+  de demonstração; carregue os shapefiles do seu país (FUNAI/ICMBio/ANM no BR; USGS/nacionais
+  fora) em `src/data/zones.ts`.
 - **📡 Radar geofence** — mapa 100% offline (sem tiles, sem API key): posição GPS no centro,
   zonas 🔴🟡🟢, análises anteriores, coordenadas e precisão.
+- **🛰️ Precisão total de posição** — GPS em tempo real com `Accuracy.Highest` (atualização a cada
+  2 m). **Offline-sem-sinal?** O app usa o *último sinal conhecido* do aparelho e, se nunca
+  houve sinal, o *último ponto que você pediu para analisar* (persistido). A origem do fix
+  aparece no radar e em cada análise (GPS ao vivo / último sinal / ponto salvo).
 - **⛔ Bloqueio legal automático** — dentro de área protegida o app bloqueia a análise e o
   alerta por voz; só libera com PLG registrada nos Ajustes.
-- **📷 Câmera + Engenheiro de Minérios** — fotografe o afloramento, marque observações
-  (material, dureza, veios, sulfetos, alteração, estrutura) e receba recomendação, rumo,
-  profundidade de teste e confiança. Com API de visão configurada, usa o **prompt específico**
-  do engenheiro; sem internet, usa heurística offline.
+- **📷 🎬 Câmera + vídeo** — fotografe o afloramento ou grave a frente de trabalho (vídeo até
+  3 min). Marque observações (material, dureza, veios, sulfetos, alteração, estrutura) e receba
+  recomendação, rumo, profundidade de teste e confiança.
+- **💾 Mídia em escala (imagens e vídeos enormes)** — fotos/vídeos vão para o armazenamento
+  **permanente** (Documentos, à prova de limpeza de cache) e o **SQLite guarda só metadados**.
+  O banco aguenta milhares de registros de mídia; gerencie espaço em Ajustes → "Mídia e
+  armazenamento".
+- **🔎 IA + referências web** — com API de visão configurada, o app busca na internet imagens
+  similares à sua rocha (Openverse, domínio público/CC) e entrega como **referência de
+  comparação** para o engenheiro de minérios. **A conclusão é SEMPRE baseada no estudo da sua
+  rocha/vídeo original** — as imagens da web nunca são usadas como fonte do parecer.
+- **🤖 Engenheiro de Minérios** — prompt específico (IA de visão) com saída JSON estruturada;
+  sem internet entra a heurística offline honesta (não inventa ouro).
 - **🔊 Voz em português** — instruções faladas na entrada de zona bloqueada e leitura da
   recomendação.
-- **📜 Histórico offline** — análises salvas em SQLite local (expo-sqlite), com detalhes e
-  reprodução por voz.
-- **⚙️ Ajustes** — nome do operador, voz on/off, URL/chave da API de visão e registro de
-  **PLG por zona** (garimpo legal).
+- **📜 Histórico offline** — análises salvas em SQLite local, com foto/vídeo, referências web,
+  fonte do sinal e reprodução por voz.
+- **⚙️ Ajustes** — nome do operador, voz on/off, URL/chave da API de visão, registro de
+  **PLG por zona** e gerenciador de mídia (tamanho + limpeza).
 
 ## 🗂️ Estrutura
 

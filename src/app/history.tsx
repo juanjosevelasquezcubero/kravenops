@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, Image, Pressable, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -33,8 +33,16 @@ function statusColor(status: ZoneStatus): string {
   }
 }
 
+function fixLabel(source: AnalysisResult['locationFix']): string {
+  if (!source) return 'Sinal não informado';
+  if (source.source === 'live') return `GPS ao vivo (~${Math.round(source.accuracyMeters)} m)`;
+  if (source.source === 'last-known') return 'Último sinal conhecido do aparelho';
+  return 'Ponto salvo (última análise)';
+}
+
 function AnalysisCard({ item, voice }: { item: AnalysisResult; voice: boolean }) {
   const [open, setOpen] = useState(false);
+  const fix = fixLabel(item.locationFix);
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
       <Pressable onPress={() => setOpen((o) => !o)}>
@@ -52,6 +60,9 @@ function AnalysisCard({ item, voice }: { item: AnalysisResult; voice: boolean })
       </Pressable>
       {open && (
         <View style={styles.cardBody}>
+          {item.videoUri && (
+            <ThemedText type="smallBold">🎬 Vídeo da frente de trabalho (salvo offline)</ThemedText>
+          )}
           <ThemedText type="smallBold">Recomendação</ThemedText>
           <ThemedText type="small">{item.recommendation}</ThemedText>
           {item.indicators.length > 0 && (
@@ -68,6 +79,30 @@ function AnalysisCard({ item, voice }: { item: AnalysisResult; voice: boolean })
             Rumo: {item.direction ?? '—'} · Prof.: {item.depth ?? '—'} · Confiança:{' '}
             {Math.round(item.confidence * 100)}% · Fonte: {item.source === 'ai' ? 'IA' : 'Offline'}
           </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            📍 {fix}
+          </ThemedText>
+          {item.references && item.references.length > 0 && (
+            <>
+              <ThemedText type="smallBold">🔎 Referências web (comparação)</ThemedText>
+              <View style={styles.refRow}>
+                {item.references.slice(0, 4).map((ref, i) => (
+                  <View key={i} style={styles.refThumbWrap}>
+                    {ref.thumbnail ? (
+                      <Image source={{ uri: ref.thumbnail }} style={styles.refThumb} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.refThumb, styles.refThumbEmpty]}>
+                        <ThemedText type="small">🪨</ThemedText>
+                      </View>
+                    )}
+                    <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
+                      {ref.title}
+                    </ThemedText>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
           <Pressable
             style={styles.smallButton}
             onPress={() => speak(item.recommendation, voice)}>
@@ -151,5 +186,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   smallButtonText: { color: '#fff', fontWeight: '700' },
+  refRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  refThumbWrap: { width: 90 },
+  refThumb: { width: 90, height: 60, borderRadius: 8 },
+  refThumbEmpty: { backgroundColor: 'rgba(120,120,120,0.2)', alignItems: 'center', justifyContent: 'center' },
   back: { marginTop: 4 },
 });

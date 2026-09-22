@@ -23,7 +23,7 @@ export async function requestLocationPermission(): Promise<boolean> {
 
 export async function getGpsState(): Promise<GpsState> {
   const loc = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.Balanced,
+    accuracy: Location.Accuracy.Highest,
   });
   return {
     coords: toLatLng(loc),
@@ -33,36 +33,56 @@ export async function getGpsState(): Promise<GpsState> {
   };
 }
 
+/**
+ * Último sinal de GPS registrado pelo aparelho (funciona mesmo offline,
+ * pois o chip de GPS guarda o último fix). Retorna null se nunca houve sinal.
+ */
 export async function getLastKnown(): Promise<GpsState | null> {
-  const loc = await Location.getLastKnownPositionAsync();
-  if (!loc) return null;
-  return {
-    coords: toLatLng(loc),
-    accuracyMeters: loc.coords.accuracy ?? 0,
-    headingDegrees: loc.coords.heading,
-    timestamp: loc.timestamp,
-  };
+  try {
+    const loc = await Location.getLastKnownPositionAsync();
+    if (!loc) return null;
+    return {
+      coords: toLatLng(loc),
+      accuracyMeters: loc.coords.accuracy ?? 0,
+      headingDegrees: loc.coords.heading,
+      timestamp: loc.timestamp,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export type LocationWatcher = {
   stop: () => void;
 };
 
-/** Assina atualizações contínuas de posição. */
+/**
+ * Assina atualizações contínuas de posição com a MELHOR PRECISÃO possível
+ * (Accuracy.Highest) e intervalo de 2 m. Falha graciosamente.
+ */
 export function watchLocation(onUpdate: (state: GpsState) => void): LocationWatcher {
+  let stopped = false;
   const sub = Location.watchPositionAsync(
-    { accuracy: Location.Accuracy.High, distanceInterval: 5 },
-    (loc) =>
+    { accuracy: Location.Accuracy.Highest, distanceInterval: 2 },
+    (loc) => {
+      if (stopped) return;
       onUpdate({
         coords: toLatLng(loc),
         accuracyMeters: loc.coords.accuracy ?? 0,
         headingDegrees: loc.coords.heading,
         timestamp: loc.timestamp,
-      }),
+      });
+    },
   );
+  // watchPositionAsync rejeita em aparelhos sem GPS / com provedor desligado.
+  sub.catch(() => {
+    // O hook usa o último sinal conhecido como fallback.
+  });
+
   return {
     stop: () => {
-      sub.then((s) => s.remove());
+      stopped = true;
+      sub.then((s) => s.remove()).catch(() => {});
     },
   };
 }

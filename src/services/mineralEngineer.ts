@@ -1,9 +1,11 @@
 import type {
   AnalysisResult,
   ObservationInput,
+  ReferenceImage,
   ZoneStatus,
 } from '@/types/analysis';
 import { ZONE_STATUS_LABEL } from '@/services/geo';
+import { buildReferencePromptBlock, searchReferenceImages } from '@/services/webResearch';
 
 export interface AnalysisContext {
   latitude: number;
@@ -132,6 +134,7 @@ export async function analyzeRemote(
   ctx: AnalysisContext,
   apiUrl: string,
   apiKey: string,
+  refs: ReferenceImage[] = [],
 ): Promise<AnalysisResult | null> {
   if (!apiUrl.trim()) return null;
   try {
@@ -142,7 +145,7 @@ export async function analyzeRemote(
         ...(apiKey.trim() ? { Authorization: `Bearer ${apiKey.trim()}` } : {}),
       },
       body: JSON.stringify({
-        prompt: buildEngineerPrompt(input, ctx),
+        prompt: buildEngineerPrompt(input, ctx) + buildReferencePromptBlock(refs),
         imageBase64: input.imageBase64,
       }),
     });
@@ -174,13 +177,22 @@ export async function analyzeRemote(
   }
 }
 
-/** Orquestra a análise: tenta IA remota, cai para heurística offline (offline-first). */
+/**
+ * Orquestra a análise (offline-first):
+ * 1. Busca referências web parecidas com a rocha original (somente contextualização).
+ * 2. Tenta IA de visão remota com o prompt específico + bloco de referências.
+ * 3. Sem API → heurística offline (funciona sem internet).
+ * A conclusão SEMPRE se baseia na mídia ORIGINAL enviada pelo garimpeiro.
+ */
 export async function runMiningAnalysis(
   input: ObservationInput,
   ctx: AnalysisContext,
   apiUrl = '',
   apiKey = '',
 ): Promise<AnalysisResult> {
-  const remote = await analyzeRemote(input, ctx, apiUrl, apiKey);
-  return remote ?? analyzeOffline(input, ctx);
+  const refs = await searchReferenceImages(input);
+  const remote = await analyzeRemote(input, ctx, apiUrl, apiKey, refs);
+  const result = remote ?? analyzeOffline(input, ctx);
+  if (refs.length > 0) result.references = refs;
+  return result;
 }

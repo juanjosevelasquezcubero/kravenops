@@ -1,10 +1,11 @@
 import Storage from 'expo-sqlite/kv-store';
 
-import type { AnalysisResult, AppSettings, PermitRecord } from '@/types/analysis';
+import type { AnalysisResult, AppSettings, PermitRecord, SavedFix } from '@/types/analysis';
 
 const KEY_ANALYSES = 'kravenops.analyses.v1';
 const KEY_PERMITS = 'kravenops.permits.v1';
 const KEY_SETTINGS = 'kravenops.settings.v1';
+const KEY_LAST_FIX = 'kravenops.lastfix.v1';
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {
   try {
@@ -72,4 +73,24 @@ export async function loadSettings(): Promise<AppSettings> {
 
 export async function saveSettings(settings: AppSettings): Promise<void> {
   await writeJSON(KEY_SETTINGS, settings);
+}
+
+/* ---------------- Último ponto analisado (fallback offline) ---------------- */
+
+export async function loadLastFix(): Promise<SavedFix | null> {
+  try {
+    const raw = await Storage.getItem(KEY_LAST_FIX);
+    if (!raw) return null;
+    return JSON.parse(raw) as SavedFix;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveLastFix(fix: SavedFix): Promise<void> {
+  try {
+    await Storage.setItem(KEY_LAST_FIX, JSON.stringify(fix));
+  } catch {
+    // não crítico
+  }
 }

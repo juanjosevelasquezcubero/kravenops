@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ZONES } from '@/data/zones';
 import { useTheme } from '@/hooks/use-theme';
+import { clearAllMedia, mediaStats, type MediaStats } from '@/services/media';
 import { loadPermits, loadSettings, removePermit, savePermit, saveSettings } from '@/services/storage';
 import type { AppSettings, PermitRecord } from '@/types/analysis';
 
@@ -20,17 +21,21 @@ export default function SettingsScreen() {
   });
   const [permits, setPermits] = useState<PermitRecord[]>([]);
   const [drafts, setDrafts] = useState<Record<string, { plg: string; holder: string }>>({});
+  const [media, setMedia] = useState<MediaStats>({ images: 0, videos: 0, bytes: 0 });
 
   useEffect(() => {
     (async () => {
-      const [s, p] = await Promise.all([loadSettings(), loadPermits()]);
+      const [s, p, m] = await Promise.all([loadSettings(), loadPermits(), mediaStats()]);
       setSettings(s);
       setPermits(p);
+      setMedia(m);
       const next: Record<string, { plg: string; holder: string }> = {};
       for (const perm of p) next[perm.zoneId] = { plg: perm.plgNumber, holder: perm.holder };
       setDrafts(next);
     })();
   }, []);
+
+  const refreshMedia = async () => setMedia(await mediaStats());
 
   const save = async () => {
     await saveSettings(settings);
@@ -145,6 +150,34 @@ export default function SettingsScreen() {
             })}
           </ThemedView>
 
+          <ThemedView type="backgroundElement" style={styles.card}>
+            <ThemedText type="smallBold">📁 Mídia e armazenamento</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Fotos e vídeos são salvos no armazenamento permanente do app (Documentos) — o SQLite
+              guarda só os metadados, então o banco aguenta milhares de registros de mídia. Arquivos
+              ficam disponíveis offline.
+            </ThemedText>
+            <ThemedText type="small">
+              🖼️ {media.images} foto(s) · 🎬 {media.videos} vídeo(s) · 💾{' '}
+              {(media.bytes / (1024 * 1024)).toFixed(1)} MB
+            </ThemedText>
+            <View style={styles.horizontalRow}>
+              <Pressable style={[styles.button, styles.flexBtn]} onPress={refreshMedia}>
+                <ThemedText type="small">Atualizar</ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.button, styles.dangerBtn, styles.flexBtn]}
+                onPress={async () => {
+                  await clearAllMedia();
+                  await refreshMedia();
+                }}>
+                <ThemedText type="small" style={{ color: '#E53935', fontWeight: '700' }}>
+                  Apagar mídia
+                </ThemedText>
+              </Pressable>
+            </View>
+          </ThemedView>
+
           <Pressable style={[styles.button, styles.primary]} onPress={save}>
             <ThemedText style={styles.buttonText}>💾 Salvar ajustes e permissões</ThemedText>
           </Pressable>
@@ -174,6 +207,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   permitRow: { gap: 8, marginTop: 4 },
+  horizontalRow: { flexDirection: 'row', gap: 8 },
+  flexBtn: { flex: 1 },
+  dangerBtn: { borderWidth: 1, borderColor: '#E53935' },
   button: {
     borderRadius: 12,
     paddingVertical: 14,

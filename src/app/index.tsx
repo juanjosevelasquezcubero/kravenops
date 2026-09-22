@@ -17,7 +17,7 @@ import type { AnalysisResult } from '@/types/analysis';
 const RADAR_RADIUS_M = 2500;
 
 export default function HomeScreen() {
-  const { gps, permission, requesting, zone, hardBlocked } = useGeolocation();
+  const { gps, permission, requesting, zone, hardBlocked, fixSource, fixAt } = useGeolocation();
   const [analyses, setAnalyses] = useState<AnalysisResult[]>([]);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const lastAnnouncedRef = useRef<string>('');
@@ -115,6 +115,15 @@ export default function HomeScreen() {
 
             <ThemedText type="small" themeColor="textSecondary" style={styles.coords}>
               {formatCoords(gps.coords.latitude, gps.coords.longitude)} · precisão ~{Math.round(gps.accuracyMeters)} m
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.coords}>
+              {fixSource === 'live'
+                ? '🛰️ GPS ao vivo'
+                : fixSource === 'last-known'
+                  ? `📍 Último sinal do aparelho${fixAt ? ` — ${new Date(fixAt).toLocaleTimeString('pt-BR')}` : ''}`
+                  : fixSource === 'saved-point'
+                    ? `🏷️ Ponto salvo (última análise solicitada${fixAt ? ` — ${new Date(fixAt).toLocaleTimeString('pt-BR')}` : ''})`
+                    : 'Sem sinal de GPS'}
             </ThemedText>
           </>
         )}

@@ -47,10 +47,31 @@ export interface ObservationInput {
   imageBase64?: string;
 }
 
+/** Imagem de referência buscada na internet (apenas contextualização). */
+export interface ReferenceImage {
+  url: string;
+  title: string;
+  author?: string;
+  thumbnail?: string;
+}
+
+/** Origem da fixação de geolocalização usada na análise. */
+export type FixSource = 'live' | 'last-known' | 'saved-point';
+
+export interface LocationFix {
+  source: FixSource;
+  /** Precisão do fix em metros, quando conhecida. */
+  accuracyMeters: number;
+  /** Timestamp do fix. */
+  fixedAt: number;
+}
+
 export interface AnalysisResult {
   id: string;
   latitude: number;
   longitude: number;
+  /** Fix da geolocalização no momento da análise. */
+  locationFix?: LocationFix | null;
   zone: { id: string; name: string; status: ZoneStatus } | null;
   rockType: string;
   indicators: string[];
@@ -59,8 +80,13 @@ export interface AnalysisResult {
   depth: string | null;
   confidence: number;
   source: 'offline' | 'ai';
-  timestamp: number;
+  /** URI permanente da foto (Documents, não cache). */
   imageUri?: string;
+  /** URI permanente do vídeo (Documents, não cache). */
+  videoUri?: string;
+  /** Referências da internet (somente comparação — conclusão vem da rocha original). */
+  references?: ReferenceImage[];
+  timestamp: number;
 }
 
 export interface PermitRecord {
@@ -75,4 +101,12 @@ export interface AppSettings {
   voiceEnabled: boolean;
   apiUrl: string;
   apiKey: string;
+}
+
+/** Último ponto de análise solicitado pelo operador (fallback offline). */
+export interface SavedFix {
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number;
+  fixedAt: number;
 }
