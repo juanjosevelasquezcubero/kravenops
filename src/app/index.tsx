@@ -54,6 +54,7 @@ export default function HomeScreen() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [viewMode, setViewMode] = useState<'3d' | 'satellite' | 'radar'>('3d');
   const [mapReady, setMapReady] = useState<boolean | null>(null);
+  const [ionToken, setIonToken] = useState('');
   const [potential, setPotential] = useState<PotentialSummary | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
@@ -72,6 +73,7 @@ export default function HomeScreen() {
         if (!active) return;
         setAnalyses(a);
         setVoiceEnabled(s.voiceEnabled);
+        setIonToken(s.ionToken ?? '');
         setTarget(getLastTarget());
       })();
       return () => {
@@ -293,6 +295,7 @@ export default function HomeScreen() {
                     markers={markerList.map((m) => ({ coords: m.coords, color: m.color }))}
                     target={target}
                     height={340}
+                    ionToken={ionToken}
                     onReady={setMapReady}
                     onPotential={onPotential}
                   />

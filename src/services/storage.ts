@@ -64,6 +64,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   voiceEnabled: true,
   apiUrl: '',
   apiKey: '',
+  ionToken: '',
 };
 
 export async function loadSettings(): Promise<AppSettings> {

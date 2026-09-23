@@ -3,13 +3,16 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { ThemedText } from '@/components/themed-text';
+import { makeGoogleEarthHtml } from '@/services/google-earth-html';
 import { makeTerrainMapHtml } from '@/services/terrain-map-html';
 import type { LatLng, MineZone, MineralTarget, PotentialSummary } from '@/types/analysis';
 
 /**
- * Mapa 3D estilo Google Earth dentro de um WebView (MapLibre GL JS).
- * - Satélite mundial (Esri) + terreno 3D real (AWS Terrarium), sem API key.
- * - Motor de potencial mineral In-JS: áreas azuis + pontos coloridos por minério.
+ * Mapa 3D estilo Google Earth dentro de um WebView.
+ * - Com `ionToken` (Cesium ion): **Google Photorealistic 3D Tiles** — os MESMOS dados 3D
+ *   do Google Earth (fotorealístico mundial), via CesiumJS.
+ * - Sem token: mapa 3D reserva (MapLibre + Esri + AWS Terrarium), sem API key.
+ * - Motor de potencial mineral em JS nos dois motores: áreas azuis + pontos coloridos.
  * - A Home (ou o chat) controla o mapa via handle imperativo.
  *
  * Requer internet (CDN + tiles). Sem rede, o app indica e usa Radar/Satélite 2D.
@@ -32,6 +35,8 @@ export interface TerrainMap3DProps {
   markers: { coords: LatLng; color: string }[];
   target?: MineralTarget;
   height?: number;
+  /** Token do Cesium ion → ativa o Google Earth 3D real (Photorealistic 3D Tiles). */
+  ionToken?: string;
   onReady?: (ok: boolean) => void;
   onPotential?: (summary: PotentialSummary) => void;
   onClick?: (lat: number, lng: number, zoneKind: string | null) => void;
@@ -39,7 +44,19 @@ export interface TerrainMap3DProps {
 }
 
 export const TerrainMap3D = forwardRef<TerrainMap3DHandle, TerrainMap3DProps>(function TerrainMap3D(
-  { center, accuracyMeters = 0, zones, markers, target = 'ouro', height = 400, onReady, onPotential, onClick, onTerrainChange },
+  {
+    center,
+    accuracyMeters = 0,
+    zones,
+    markers,
+    target = 'ouro',
+    height = 400,
+    ionToken,
+    onReady,
+    onPotential,
+    onClick,
+    onTerrainChange,
+  },
   ref,
 ) {
   const webRef = useRef<WebView>(null);
@@ -47,7 +64,11 @@ export const TerrainMap3D = forwardRef<TerrainMap3DHandle, TerrainMap3DProps>(fu
   const queueRef = useRef<Record<string, unknown>[]>([]);
   const [terrainOk, setTerrainOk] = useState<boolean | null>(null);
 
-  const html = useMemo(() => makeTerrainMapHtml(), []);
+  const googleEarth = !!ionToken && ionToken.trim().length > 8;
+  const html = useMemo(
+    () => (googleEarth ? makeGoogleEarthHtml((ionToken ?? '').trim()) : makeTerrainMapHtml()),
+    [googleEarth, ionToken],
+  );
 
   const send = useCallback((msg: Record<string, unknown>) => {
     const payload = `window.kravenOps && window.kravenOps(${JSON.stringify(msg)})`;
@@ -172,7 +193,9 @@ export const TerrainMap3D = forwardRef<TerrainMap3DHandle, TerrainMap3DProps>(fu
         </View>
       )}
       <Pressable style={styles.credit} onPress={() => send({ cmd: 'pitch' })}>
-        <ThemedText type="small">🌐 3D Esri + AWS Terrain · toque p/ inclinar</ThemedText>
+        <ThemedText type="small">
+          {googleEarth ? '🌐 Google Earth 3D · toque p/ inclinar' : '🗺️ 3D Esri + AWS Terrain · toque p/ inclinar'}
+        </ThemedText>
       </Pressable>
     </View>
   );

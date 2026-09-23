@@ -18,6 +18,7 @@ export default function SettingsScreen() {
     voiceEnabled: true,
     apiUrl: '',
     apiKey: '',
+    ionToken: '',
   });
   const [permits, setPermits] = useState<PermitRecord[]>([]);
   const [drafts, setDrafts] = useState<Record<string, { plg: string; holder: string }>>({});
@@ -121,6 +122,36 @@ export default function SettingsScreen() {
               secureTextEntry
               value={settings.apiKey}
               onChangeText={(t) => setSettings((s) => ({ ...s, apiKey: t }))}
+            />
+          </ThemedView>
+
+          <ThemedView type="backgroundElement" style={styles.card}>
+            <ThemedText type="smallBold">🌐 Google Earth 3D (Photorealistic 3D Tiles)</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Com um token gratuito do Cesium ion, o mapa 3D da Home vira o Google Earth de verdade
+              (fotorealístico mundial — os mesmos dados 3D do Google). Sem token, o app usa o mapa 3D
+              reserva (Esri + AWS Terrain) normalmente.
+            </ThemedText>
+            <ThemedView type="backgroundElement" style={styles.hintBox}>
+              <ThemedText type="smallBold">Como conseguir o token grátis (2 min):</ThemedText>
+              <ThemedText type="small">
+                1️⃣ Abra <ThemedText type="smallBold">ion.cesium.com</ThemedText> e crie uma conta grátis.
+              </ThemedText>
+              <ThemedText type="small">
+                2️⃣ Menu <ThemedText type="smallBold">Access Tokens</ThemedText> → copie seu token.
+              </ThemedText>
+              <ThemedText type="small">
+                3️⃣ Cole aqui embaixo e salve. O mapa 3D recarrega com o Google Earth real.
+              </ThemedText>
+            </ThemedView>
+            <TextInput
+              style={[styles.input, { color: theme.text, backgroundColor: theme.background }]}
+              placeholder="Cole o token do Cesium ion (eyJ…)"
+              placeholderTextColor={theme.textSecondary}
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={settings.ionToken}
+              onChangeText={(t) => setSettings((s) => ({ ...s, ionToken: t.trim() }))}
             />
           </ThemedView>
 

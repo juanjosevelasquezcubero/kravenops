@@ -35,8 +35,12 @@ Requer **Expo Go** ou dev build. GPS, câmera e voz funcionam em aparelho físic
   sua posição atual (projeção equiretangular local, sem dependência de país). As zonas são dados
   de demonstração; carregue os shapefiles do seu país (FUNAI/ICMBio/ANM no BR; USGS/nacionais
   fora) em `src/data/zones.ts`.
-- **🌐 "Júpiter 3D" (Google Earth real no app)** — WebView + **MapLibre GL JS**: satélite **Esri
-  World Imagery** + **terreno 3D real** (tiles de elevação AWS Terrarium, mundial, sem API key).
+- **🌐 "Júpiter 3D" (Google Earth real no app)** — WebView com **dois motores**:
+  - **Google Earth 3D de verdade** (recomendado): cole o token **gratuito** do Cesium ion em
+    *Ajustes → Google Earth 3D* e o mapa usa os **Google Photorealistic 3D Tiles** — os MESMOS
+    dados 3D (fotorealístico mundial) que alimentam o Google Earth, via CesiumJS.
+  - **Reserva (sem token)**: **MapLibre GL JS** + satélite **Esri World Imagery** + **terreno 3D
+    real** (tiles de elevação AWS Terrarium, mundial, sem API key).
   Gire o mapa (pitch 2D/3D 🏔️), zoom, pan e **seguir minha posição** 🎯. Requer internet.
 - **🔵 Áreas de alto potencial mineral em azul** — ao abrir (ou buscar qualquer região/país), o
   app amostra o relevo da área visível (elevação/declividade/curvatura, estilo engenharia do
@@ -94,12 +98,13 @@ Requer **Expo Go** ou dev build. GPS, câmera e voz funcionam em aparelho físic
 ```
 src/
   app/          # rotas Expo Router (index=casa 3D/2D/radar, chat, camera, history, settings)
-  components/   # terrain-map-3d (WebView MapLibre), satellite-map, radar-map, zone-badge, tabs, themed-*
+  components/   # terrain-map-3d (WebView: Google Earth 3D / MapLibre), satellite-map, radar-map, zone-badge, tabs, themed-*
   data/         # zones.ts (polígonos de demonstração)
   hooks/        # use-geolocation (GPS + status legal da zona)
   services/     # geo (haversine/polygon), storage (SQLite KV),
                 # geolocation, mineralEngineer (IA+offline), aiChat, terrain-map-html
-                # (motor 3D + potencial mineral), sessionStore, voice, webResearch
+                # (motor 3D reserva + potencial mineral), google-earth-html (motor
+                # Google Photorealistic 3D Tiles via Cesium), sessionStore, voice, webResearch
   types/        # análise, zonas, permissões, configurações, alvo mineral, potencial
 tools/
   bridge/       # ponte local (PC): conecta o app ao OpenCode/qualquer IA de visão

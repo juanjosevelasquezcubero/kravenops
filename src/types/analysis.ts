@@ -113,6 +113,8 @@ export interface AppSettings {
   voiceEnabled: boolean;
   apiUrl: string;
   apiKey: string;
+  /** Token gratuito do Cesium ion para o mapa "Google Earth 3D" (Photorealistic 3D Tiles). */
+  ionToken: string;
 }
 
 /** Último ponto de análise solicitado pelo operador (fallback offline). */
