@@ -23,6 +23,7 @@ export default function AppTabs() {
         tabBarStyle: { backgroundColor: theme.background },
       }}>
       <Tabs.Screen name="index" options={{ title: 'Radar', tabBarIcon: tabIcon('📡') }} />
+      <Tabs.Screen name="chat" options={{ title: 'Engenheiro', tabBarIcon: tabIcon('🤖') }} />
       <Tabs.Screen name="camera" options={{ title: 'Câmera', tabBarIcon: tabIcon('📷') }} />
       <Tabs.Screen name="history" options={{ title: 'Histórico', tabBarIcon: tabIcon('📜') }} />
       <Tabs.Screen name="settings" options={{ title: 'Ajustes', tabBarIcon: tabIcon('⚙️') }} />

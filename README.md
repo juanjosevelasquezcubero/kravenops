@@ -35,10 +35,22 @@ Requer **Expo Go** ou dev build. GPS, câmera e voz funcionam em aparelho físic
   sua posição atual (projeção equiretangular local, sem dependência de país). As zonas são dados
   de demonstração; carregue os shapefiles do seu país (FUNAI/ICMBio/ANM no BR; USGS/nacionais
   fora) em `src/data/zones.ts`.
-- **🗺️ Mapa satelital estilo Google Earth** — tiles de satélite da **Esri World Imagery**
-  (sem API key): arraste (pan), zoom (＋/−), botão **seguir minha posição** 🎯, polígonos das
-  zonas 🔴🟡🟢 e marcadores de análises, funcionando em qualquer lugar do mundo. Requer internet
-  para as imagens; com **📡 Radar offline** basta tocar para alternar.
+- **🌐 "Júpiter 3D" (Google Earth real no app)** — WebView + **MapLibre GL JS**: satélite **Esri
+  World Imagery** + **terreno 3D real** (tiles de elevação AWS Terrarium, mundial, sem API key).
+  Gire o mapa (pitch 2D/3D 🏔️), zoom, pan e **seguir minha posição** 🎯. Requer internet.
+- **🔵 Áreas de alto potencial mineral em azul** — ao abrir (ou buscar qualquer região/país), o
+  app amostra o relevo da área visível (elevação/declividade/curvatura, estilo engenharia do
+  terreno) e pinta em **azul** as células favoráveis. Estimativa honesta do modelo — confirme
+  sempre em campo.
+- **🟡🟥⬜ Pontos coloridos por minério** — o mesmo estudo marca pontos de pico por mineral:
+  **ouro=amarelo, bauxita=vermelho, diamante=branco, ferro=cinza, cobre=verde, terras
+  raras=laranja**. Legenda de cores fixa no rodapé com o significado.
+- **🔍 Busca mundial por região/cidade/país** — geocodificação OSM (Nominatim, sem chave);
+  voe até o local, o estudo de potencial roda lá também.
+- **🗺️ Mapa satelital (2D)** — tiles de satélite da **Esri World Imagery** (sem API key):
+  arraste (pan), zoom (＋/−), botão **seguir minha posição** 🎯, polígonos das zonas 🔴🟡🟢 e
+  marcadores de análises. Requer internet para as imagens; com **📡 Radar offline** basta tocar
+  para alternar.
 - **📡 Radar geofence** — mapa 100% offline (sem tiles, sem API key): posição GPS no centro,
   zonas 🔴🟡🟢, análises anteriores, coordenadas e precisão.
 - **🛰️ Precisão total de posição** — GPS em tempo real com `Accuracy.Highest` (atualização a cada
@@ -63,6 +75,10 @@ Requer **Expo Go** ou dev build. GPS, câmera e voz funcionam em aparelho físic
 - **🤖 Engenheiro de Minérios** — prompt específico (IA de visão) estruturado por mineral-alvo
   com saída JSON; sem internet entra a heurística offline honesta (não inventa ouro) com
   indicadores específicos de ouro, diamante, ferro, terras raras, cobre e bauxita.
+- **💬 Chat com o engenheiro (aba 🤖)** — pergunte "onde prospectar?", "como usar a bateia",
+  "profundidade", "é legal aqui?" e receba resposta com contexto real: sua posição, situação
+  legal da zona, alvo escolhido e o último estudo de potencial do mapa. Usa a IA configurada; sem
+  IA, responde offline com orientação honesta.
 - **🖥️ Ponte IA via OpenCode (Big Pickle ou melhor)** — `tools/bridge` é um servidor local no seu
   PC que o app chama pela rede Wi-Fi e encaminha foto + prompt para o melhor modelo de visão do
   seu **OpenCode** (ou modo OpenAI/Gemini com chave). Veja `tools/bridge/README.md`.
@@ -77,13 +93,14 @@ Requer **Expo Go** ou dev build. GPS, câmera e voz funcionam em aparelho físic
 
 ```
 src/
-  app/          # rotas Expo Router (index=casa, camera, history, settings)
-  components/   # radar-map, satellite-map, zone-badge, tabs, themed-*
+  app/          # rotas Expo Router (index=casa 3D/2D/radar, chat, camera, history, settings)
+  components/   # terrain-map-3d (WebView MapLibre), satellite-map, radar-map, zone-badge, tabs, themed-*
   data/         # zones.ts (polígonos de demonstração)
   hooks/        # use-geolocation (GPS + status legal da zona)
   services/     # geo (haversine/polygon), storage (SQLite KV),
-                # geolocation, mineralEngineer (IA+offline), voice, webResearch
-  types/        # análise, zonas, permissões, configurações, alvo mineral
+                # geolocation, mineralEngineer (IA+offline), aiChat, terrain-map-html
+                # (motor 3D + potencial mineral), sessionStore, voice, webResearch
+  types/        # análise, zonas, permissões, configurações, alvo mineral, potencial
 tools/
   bridge/       # ponte local (PC): conecta o app ao OpenCode/qualquer IA de visão
 ```
@@ -99,7 +116,8 @@ npx expo-doctor    # compatibilidade de dependências
 ## 🔮 Próximas fases (visão)
 
 - Shapefiles reais (FUNAI/ICMBio/ANM SIGMINE/CPRM/USGS) + atualização por período.
-- Bandas de alteração mineral via Sentinel-2/Landsat (óxidos/argilas) sobre o mapa de satélite.
+- Bandas reais de alteração mineral via Sentinel-2/Landsat (óxidos/argilas) para **validar as
+  áreas azuis** de potencial — hoje o azul vem de modelo de terreno (elevação/declividade).
 - Histórico geológico e indicadores de ouro por região.
 - Comandos de voz (ditar observações).
 - Relatório PLG (geração de documento).

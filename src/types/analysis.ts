@@ -122,3 +122,23 @@ export interface SavedFix {
   accuracyMeters: number;
   fixedAt: number;
 }
+
+/** Ponto de alto potencial mineral calculado pelo motor de terreno (estimativa). */
+export interface PotentialSpot {
+  latitude: number;
+  longitude: number;
+  /** Mineral indicado para este ponto (cores: ouro=amarelo, bauxita=vermelho, diamante=branco...). */
+  mineral: MineralTarget | 'geral';
+  /** Confiança do modelo de terreno (0..1). */
+  score: number;
+  zoneKind: ZoneKind | null;
+  elevation: number;
+  slopeDeg: number;
+}
+
+/** Resumo do estudo de potencial feito no mapa 3D. */
+export interface PotentialSummary {
+  count: number;
+  top: PotentialSpot[];
+  at: { latitude: number; longitude: number };
+}
