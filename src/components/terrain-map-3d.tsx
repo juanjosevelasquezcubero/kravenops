@@ -63,6 +63,7 @@ export const TerrainMap3D = forwardRef<TerrainMap3DHandle, TerrainMap3DProps>(fu
   const readyRef = useRef(false);
   const queueRef = useRef<Record<string, unknown>[]>([]);
   const [terrainOk, setTerrainOk] = useState<boolean | null>(null);
+  const [mapError, setMapError] = useState('');
 
   const googleEarth = !!ionToken && ionToken.trim().length > 8;
   const html = useMemo(
@@ -133,12 +134,13 @@ export const TerrainMap3D = forwardRef<TerrainMap3DHandle, TerrainMap3DProps>(fu
   }, [target, send]);
 
   // Timeout de prontidão (sem internet: CDN não carrega → avisar o usuário).
+  // O motor Google Earth (Cesium) é bem maior que o MapLibre → mais tempo.
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!readyRef.current) onReady?.(false);
-    }, 15000);
+    }, googleEarth ? 25000 : 15000);
     return () => clearTimeout(timer);
-  }, [onReady]);
+  }, [onReady, googleEarth]);
 
   const onMessage = useCallback(
     (e: WebViewMessageEvent) => {
@@ -150,6 +152,7 @@ export const TerrainMap3D = forwardRef<TerrainMap3DHandle, TerrainMap3DProps>(fu
       }
       switch (msg.type) {
         case 'ready':
+          setMapError('');
           flushSync();
           sendSync();
           onReady?.(true);
@@ -166,7 +169,9 @@ export const TerrainMap3D = forwardRef<TerrainMap3DHandle, TerrainMap3DProps>(fu
           break;
         case 'initError':
         case 'mapError':
-          // console.warn('[mapa3d]', msg.message); // silencioso para o usuário
+          // Mostra a mensagem específica no banner (ex.: token inválido, sem WebGL).
+          setMapError(String(msg.message ?? 'Ocorreu um erro no mapa 3D.'));
+          onReady?.(true);
           break;
       }
     },
@@ -187,11 +192,18 @@ export const TerrainMap3D = forwardRef<TerrainMap3DHandle, TerrainMap3DProps>(fu
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
       />
-      {terrainOk === false && (
-        <View style={styles.banner} pointerEvents="none">
-          <ThemedText type="small">⛰️ Terreno 3D indisponível sem rede. O satélite continua visível.</ThemedText>
-        </View>
-      )}
+      <View style={styles.topStack} pointerEvents="none">
+        {!!mapError && (
+          <View style={styles.errorBanner}>
+            <ThemedText type="small">⚠️ {mapError}</ThemedText>
+          </View>
+        )}
+        {terrainOk === false && (
+          <View style={styles.banner}>
+            <ThemedText type="small">⛰️ Terreno 3D indisponível sem rede. O satélite continua visível.</ThemedText>
+          </View>
+        )}
+      </View>
       <Pressable style={styles.credit} onPress={() => send({ cmd: 'pitch' })}>
         <ThemedText type="small">
           {googleEarth ? '🌐 Google Earth 3D · toque p/ inclinar' : '🗺️ 3D Esri + AWS Terrain · toque p/ inclinar'}
@@ -204,12 +216,17 @@ export const TerrainMap3D = forwardRef<TerrainMap3DHandle, TerrainMap3DProps>(fu
 const styles = StyleSheet.create({
   container: { borderRadius: 16, overflow: 'hidden', backgroundColor: '#0b1e33' },
   web: { flex: 1, backgroundColor: '#0b1e33' },
+  topStack: { position: 'absolute', left: 8, right: 8, top: 8, gap: 6 },
   banner: {
-    position: 'absolute',
-    left: 8,
-    right: 8,
-    top: 8,
     backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  errorBanner: {
+    backgroundColor: 'rgba(120,18,18,0.88)',
+    borderWidth: 1,
+    borderColor: '#E53935',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,

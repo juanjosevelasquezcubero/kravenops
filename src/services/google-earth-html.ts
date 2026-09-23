@@ -37,7 +37,12 @@ var statusEl = document.getElementById('status');
 var setStatus = function (txt, show) { if (!statusEl) return; statusEl.textContent = txt || ''; statusEl.style.display = show ? 'block' : 'none'; };
 var clamp = function (v, lo, hi) { return Math.max(lo, Math.min(hi, v)); };
 
-Cesium.Ion.defaultAccessToken = ${tokenJson};
+window.addEventListener('error', function (e) {
+  try {
+    var em = e && e.message ? e.message : String(e && e.error || e || '');
+    post({ type: 'mapError', message: 'Erro interno do mapa 3D: ' + em });
+  } catch (err2) {}
+});
 
 var MINERALS = {
   ouro:         '#FFD54F',
@@ -379,64 +384,74 @@ window.kravenOps = function (msg) {
 };
 
 /* ---------- INICIALIZAÇÃO ---------- */
-try {
-  viewer = new Cesium.Viewer('cesiumContainer', {
-    baseLayerPicker: false, geocoder: false, homeButton: false, sceneModePicker: false,
-    navigationHelpButton: false, animation: false, timeline: false, fullscreenButton: false,
-    infoBox: false, selectionIndicator: false,
-    baseLayer: false
-  });
-} catch (err) {
-  post({ type: 'initError', message: String(err && err.message || err) });
-}
-try {
-  viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#0b1e33');
-  viewer.scene.globe.enableLighting = false;
-  viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(-49.5, -6.2, 120000),
-    orientation: { heading: 0, pitch: Cesium.Math.toRadians(-55), roll: 0 }
-  });
-  viewer.scene.screenSpaceCameraController.maximumZoomDistance = 3000000;
-  viewer.screenSpaceEventHandler.setInputAction(function (movement) {
-    var cartesian = viewer.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
-    if (cartesian) {
-      var carto = Cesium.Cartographic.fromCartesian(cartesian);
-      post({ type: 'clicked', lat: Cesium.Math.toDegrees(carto.latitude), lng: Cesium.Math.toDegrees(carto.longitude),
-        zoneKind: zoneAt(Cesium.Math.toDegrees(carto.latitude), Cesium.Math.toDegrees(carto.longitude)) });
-    }
-  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-  loaded = true;
-  post({ type: 'ready' });
-  setStatus('Carregando Google Earth 3D…', true);
-
-  // Google Photorealistic 3D Tiles (os dados 3D do Google Earth).
-  Cesium.Cesium3DTileset.fromIonAssetId(2275207, { maximumScreenSpaceError: 8 }).then(function (ts) {
-    googleTiles = ts;
-    viewer.scene.primitives.add(ts);
-    ts.readyEvent.addEventListener(function () { setStatus('', false); });
-    ts.tileLoadErrorEvent.addEventListener(function (e) {
-      setStatus('Algumas áreas 3D podem demorar…', false);
+function boot() {
+  Cesium.Ion.defaultAccessToken = ${tokenJson};
+  try {
+    viewer = new Cesium.Viewer('cesiumContainer', {
+      baseLayerPicker: false, geocoder: false, homeButton: false, sceneModePicker: false,
+      navigationHelpButton: false, animation: false, timeline: false, fullscreenButton: false,
+      infoBox: false, selectionIndicator: false,
+      baseLayer: false
     });
-  }).catch(function (err) {
-    setStatus('Token Cesium ion inválido? Veja Ajustes → Google Earth 3D.', true);
-    post({ type: 'mapError', message: 'Google 3D tiles: ' + String(err && err.message || err) });
-  });
+  } catch (err) {
+    post({ type: 'mapError', message: 'Seu aparelho não abriu o 3D do Google (WebGL indisponível). Use o mapa 3D reserva.' });
+    return;
+  }
+  try {
+    viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#0b1e33');
+    viewer.scene.globe.enableLighting = false;
+    viewer.camera.setView({
+      destination: Cesium.Cartesian3.fromDegrees(-49.5, -6.2, 120000),
+      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-55), roll: 0 }
+    });
+    viewer.scene.screenSpaceCameraController.maximumZoomDistance = 3000000;
+    viewer.screenSpaceEventHandler.setInputAction(function (movement) {
+      var cartesian = viewer.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
+      if (cartesian) {
+        var carto = Cesium.Cartographic.fromCartesian(cartesian);
+        post({ type: 'clicked', lat: Cesium.Math.toDegrees(carto.latitude), lng: Cesium.Math.toDegrees(carto.longitude),
+          zoneKind: zoneAt(Cesium.Math.toDegrees(carto.latitude), Cesium.Math.toDegrees(carto.longitude)) });
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-  // Terreno mundial (gratuito no ion) apenas para o estudo de potencial/elevação.
-  Cesium.createWorldTerrainAsync({ requestWaterMask: false, requestVertexNormals: false }).then(function (tp) {
-    terrainProvider = tp;
-    // Testa uma leitura para confirmar o token.
-    Cesium.sampleTerrain(tp, 8, [Cesium.Cartographic.fromDegrees(-49.5, -6.2)]).then(function () {
-      post({ type: 'terrain', ok: true });
-      setStatus('', false);
-    }).catch(function () { post({ type: 'terrain', ok: false }); });
-  }).catch(function () {
-    post({ type: 'terrain', ok: false });
-    setStatus('Sem elevação (estudo de potencial indisponível). Confirme o token Cesium ion.', true);
-  });
-} catch (err) {
-  post({ type: 'initError', message: String(err && err.message || err) });
+    loaded = true;
+    post({ type: 'ready' });
+    setStatus('Baixando Google Earth 3D (a 1ª vez demora um pouco)…', true);
+
+    // Google Photorealistic 3D Tiles (os dados 3D do Google Earth).
+    Cesium.Cesium3DTileset.fromIonAssetId(2275207, { maximumScreenSpaceError: 8 }).then(function (ts) {
+      googleTiles = ts;
+      viewer.scene.primitives.add(ts);
+      ts.readyEvent.addEventListener(function () { setStatus('', false); });
+      ts.tileLoadErrorEvent.addEventListener(function () {
+        setStatus('Algumas áreas 3D podem demorar…', true);
+      });
+    }).catch(function () {
+      var m = 'Token do Cesium ion sem acesso ao Google 3D. Veja Ajustes → Google Earth 3D (token grátis em ion.cesium.com).';
+      setStatus(m, true);
+      post({ type: 'mapError', message: m });
+    });
+
+    // Terreno mundial (gratuito no ion) para o estudo de potencial/elevação.
+    Cesium.createWorldTerrainAsync({ requestWaterMask: false, requestVertexNormals: false }).then(function (tp) {
+      terrainProvider = tp;
+      Cesium.sampleTerrain(tp, 8, [Cesium.Cartographic.fromDegrees(-49.5, -6.2)]).then(function () {
+        post({ type: 'terrain', ok: true });
+        setStatus('', false);
+      }).catch(function () { post({ type: 'terrain', ok: false }); });
+    }).catch(function () {
+      post({ type: 'terrain', ok: false });
+      setStatus('Sem elevação (estudo de potencial indisponível). Confirme o token Cesium ion.', true);
+    });
+  } catch (err) {
+    post({ type: 'mapError', message: String(err && err.message || err) });
+  }
+}
+if (typeof Cesium === 'undefined') {
+  // Script do Cesium não carregou — quase sempre falta de internet no CDN.
+  setStatus('Sem internet: o motor Google Earth não carregou. Use o mapa 3D reserva.', true);
+} else {
+  boot();
 }
 </script>
 </body>
