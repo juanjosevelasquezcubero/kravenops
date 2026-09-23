@@ -37,11 +37,13 @@ export function makeTerrainMapHtml(): string {
 <div id="map"></div>
 <script type="module">
 import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.11.0/dist/maplibre-gl.mjs';
+window.__kravenMapLoaded = true; // motor baixado OK (checado por script clássico abaixo)
 
 var post = function (msg) { try { window.ReactNativeWebView.postMessage(JSON.stringify(msg)); } catch (e) {} };
 var statusEl = document.getElementById('status');
 var setStatus = function (txt, show) { if (!statusEl) return; statusEl.textContent = txt || ''; statusEl.style.display = show ? 'block' : 'none'; };
 var clamp = function (v, lo, hi) { return Math.max(lo, Math.min(hi, v)); };
+setStatus('Carregando mapa 3D (Júpiter)…', true);
 
 var MINERALS = {
   ouro:         { color: '#FFD54F', label: 'Ouro' },
@@ -405,6 +407,7 @@ try {
 
 map.on('load', function () {
   loaded = true;
+  setStatus('', false);
   ensureLayers();
   refreshZones(); refreshMarkers(); refreshGps();
   var vis0 = state.potentialVisible ? 'visible' : 'none';
@@ -426,6 +429,26 @@ setTimeout(function () {
 }, 1500);
 
 setTimeout(function () { post({ type: 'ready' }); }, 300);
+</script>
+<script>
+// Detecta falha ao baixar o motor (CDN bloqueado/sem internet) — o import de módulo
+// falha em silêncio, então um script clássico separado monitora a chegada do motor.
+(function () {
+  var n = 0;
+  var t = setInterval(function () {
+    n++;
+    if (window.__kravenMapLoaded) { clearInterval(t); return; }
+    if (n >= 24) {
+      clearInterval(t);
+      try {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'mapError',
+          message: 'Não foi possível baixar o motor do mapa (sem internet para o CDN?). Confira o Wi-Fi.'
+        }));
+      } catch (e) {}
+    }
+  }, 500);
+})();
 </script>
 </body>
 </html>`;

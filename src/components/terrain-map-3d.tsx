@@ -64,12 +64,23 @@ export const TerrainMap3D = forwardRef<TerrainMap3DHandle, TerrainMap3DProps>(fu
   const queueRef = useRef<Record<string, unknown>[]>([]);
   const [terrainOk, setTerrainOk] = useState<boolean | null>(null);
   const [mapError, setMapError] = useState('');
+  const [engineNote, setEngineNote] = useState('');
+  // 'auto' = usa Google Earth 3D se houver token; 'fallback' = força o mapa reserva (Júpiter).
+  const [engine, setEngine] = useState<'auto' | 'fallback'>('auto');
 
-  const googleEarth = !!ionToken && ionToken.trim().length > 8;
+  const googleWanted = !!ionToken && ionToken.trim().length > 8;
+  const useGoogle = googleWanted && engine === 'auto';
   const html = useMemo(
-    () => (googleEarth ? makeGoogleEarthHtml((ionToken ?? '').trim()) : makeTerrainMapHtml()),
-    [googleEarth, ionToken],
+    () => (useGoogle ? makeGoogleEarthHtml((ionToken ?? '').trim()) : makeTerrainMapHtml()),
+    [useGoogle, ionToken],
   );
+
+  // Token mudou nos Ajustes → tenta o Google de novo e limpa avisos antigos.
+  useEffect(() => {
+    setEngine('auto');
+    setEngineNote('');
+    setMapError('');
+  }, [ionToken]);
 
   const send = useCallback((msg: Record<string, unknown>) => {
     const payload = `window.kravenOps && window.kravenOps(${JSON.stringify(msg)})`;
@@ -135,12 +146,22 @@ export const TerrainMap3D = forwardRef<TerrainMap3DHandle, TerrainMap3DProps>(fu
 
   // Timeout de prontidão (sem internet: CDN não carrega → avisar o usuário).
   // O motor Google Earth (Cesium) é bem maior que o MapLibre → mais tempo.
+  // Se o Google não responder no prazo, cai automaticamente para o mapa reserva.
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (!readyRef.current) onReady?.(false);
-    }, googleEarth ? 25000 : 15000);
+      if (!readyRef.current) {
+        if (useGoogle) {
+          readyRef.current = false;
+          setEngine('fallback');
+          setEngineNote(
+            'Google Earth 3D não carregou (confira o token e a internet). Usando o mapa 3D reserva (Júpiter).',
+          );
+        }
+        onReady?.(false);
+      }
+    }, useGoogle ? 25000 : 15000);
     return () => clearTimeout(timer);
-  }, [onReady, googleEarth]);
+  }, [onReady, useGoogle]);
 
   const onMessage = useCallback(
     (e: WebViewMessageEvent) => {
@@ -169,13 +190,23 @@ export const TerrainMap3D = forwardRef<TerrainMap3DHandle, TerrainMap3DProps>(fu
           break;
         case 'initError':
         case 'mapError':
-          // Mostra a mensagem específica no banner (ex.: token inválido, sem WebGL).
-          setMapError(String(msg.message ?? 'Ocorreu um erro no mapa 3D.'));
+          if (useGoogle) {
+            // Google 3D falhou → cai automaticamente para o mapa reserva (Júpiter).
+            readyRef.current = false;
+            setMapError('');
+            setEngine('fallback');
+            setEngineNote(
+              'Google Earth 3D não carregou (confira o token ou o Wi-Fi). Usando o mapa 3D reserva (Júpiter).',
+            );
+          } else {
+            // Mostra a mensagem específica no banner (ex.: sem internet para o CDN).
+            setMapError(String(msg.message ?? 'Ocorreu um erro no mapa 3D.'));
+          }
           onReady?.(true);
           break;
       }
     },
-    [flushSync, sendSync, onReady, onPotential, onClick, onTerrainChange],
+    [flushSync, sendSync, onReady, onPotential, onClick, onTerrainChange, useGoogle],
   );
 
   return (
@@ -193,6 +224,11 @@ export const TerrainMap3D = forwardRef<TerrainMap3DHandle, TerrainMap3DProps>(fu
         mediaPlaybackRequiresUserAction={false}
       />
       <View style={styles.topStack} pointerEvents="none">
+        {!!engineNote && (
+          <View style={styles.noteBanner}>
+            <ThemedText type="small">ℹ️ {engineNote}</ThemedText>
+          </View>
+        )}
         {!!mapError && (
           <View style={styles.errorBanner}>
             <ThemedText type="small">⚠️ {mapError}</ThemedText>
@@ -206,7 +242,7 @@ export const TerrainMap3D = forwardRef<TerrainMap3DHandle, TerrainMap3DProps>(fu
       </View>
       <Pressable style={styles.credit} onPress={() => send({ cmd: 'pitch' })}>
         <ThemedText type="small">
-          {googleEarth ? '🌐 Google Earth 3D · toque p/ inclinar' : '🗺️ 3D Esri + AWS Terrain · toque p/ inclinar'}
+          {useGoogle ? '🌐 Google Earth 3D · toque p/ inclinar' : '🗺️ 3D Esri + AWS Terrain · toque p/ inclinar'}
         </ThemedText>
       </Pressable>
     </View>
@@ -227,6 +263,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(120,18,18,0.88)',
     borderWidth: 1,
     borderColor: '#E53935',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  noteBanner: {
+    backgroundColor: 'rgba(21,101,192,0.85)',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
