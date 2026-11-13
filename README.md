@@ -131,3 +131,59 @@ npx expo-doctor    # compatibilidade de dependências
 ---
 
 Criado com [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+
+## 🗺️ Plan de expansión offline-first (arquitectura objetivo)
+
+> Estado: **planificado**. Esta sección describe hacia dónde va KravenOps. Lo que ya existe hoy se indica en cada punto.
+
+**Objetivo:** usar la app en el campo **sin internet**: marcar la región con GPS, tomar fotos de rocas y sitios, y **cuando vuelva la conexión** evaluar todo con el modelo de visión y correr los tests.
+
+### 1. Almacenamiento offline con SQLite
+- Hoy: listas JSON en `expo-sqlite/kv-store` (límite de 200 análisis).
+- Objetivo: tablas reales en `expo-sqlite` para **puntos**, **fotos** y **análisis**, con migraciones versionadas.
+- Cada foto/análisis tiene un estado: `pendiente` → `enviando` → `analizado` | `error` (con número de intentos y último error).
+- Las fotos siguen como archivos en el directorio de documentos; SQLite guarda solo la ruta y los metadatos.
+
+### 2. Marcación de región por GPS
+- Waypoints con **nombre**, latitud/longitud, **precisión (m)**, **hora**, nota y región.
+- Registro opcional de recorrido (track) con `expo-location` + `expo-task-manager`.
+- Distancia y rumbo hasta cada punto guardado para guiar al usuario en el campo.
+
+### 3. Mapas offline con MapLibre
+- `@maplibre/maplibre-react-native` (requiere *development build*, no funciona en Expo Go).
+- Archivo de mapa **pre-descargado** (p. ej. PMTiles/MBTiles) de la región de Bolívar / El Callao / Escudo de Guayana, generado a partir de datos OSM con un proveedor o servidor propio.
+- ⚠️ **No** descargar teselas directamente de los servidores públicos de OpenStreetMap: su política de uso prohíbe la descarga masiva.
+- Las librerías de mapa dejan de cargarse desde CDN y van empaquetadas en la app.
+
+### 4. Cola de fotos y sincronización al reconectar
+- Sin internet la foto **no se procesa con IA**: queda en la cola como `pendiente` con coordenadas y datos de campo.
+- Detector de conectividad (p. ej. `@react-native-community/netinfo`): al volver la red, envía **una por una**, con reintentos y espera exponencial.
+- Sincronización también en segundo plano (`expo-background-task` / `expo-task-manager`).
+- El resultado de la IA reemplaza al resultado heurístico offline cuando llega.
+
+### 5. Modelo de visión vía el servidor puente
+- La app habla con el **servidor puente** (`tools/bridge`); la **API key vive en el servidor**, no en texto plano en el teléfono.
+- Validación del JSON de respuesta (p. ej. con `zod`) antes de guardarlo.
+- Redimensionar/comprimir la foto antes de subirla (`expo-image-manipulator`).
+
+### 6. Capas geológicas y áreas protegidas
+- Capas del USGS *Geology and Resource Assessment of the Venezuelan Guayana Shield* (1:500.000) convertidas a GeoJSON/vector tiles legibles por la app.
+- Límites de áreas protegidas (Parque Nacional Canaima, tierras indígenas) mostrados en **rojo**, reemplazando los polígonos de demostración actuales.
+
+### 7. Puntos propios del usuario
+- Zonas conocidas localmente (p. ej. "Camorras", zonas blancas súper mineralizadas) se cargan como **puntos del usuario**, separados de los datos oficiales.
+- Estos puntos son privados: no se publican ni se comparten.
+
+### 8. Tests
+- Jest (`jest-expo`) para: heurística offline, zonas (punto dentro de polígono), cola, simulación de sincronización (red caída / vuelve) y parseo de la respuesta de la IA.
+- Ejecución automática en **GitHub Actions** en cada push y pull request.
+
+### 9. Pantalla de fotos pendientes
+- Lista de fotos con su estado, número de intentos y error.
+- Botón **"Sincronizar ahora"**.
+
+### 10. Forma de trabajo
+- Commits pequeños e incrementales (uno por funcionalidad) en vez de un solo commit grande.
+
+### ⚖️ Aviso legal y de seguridad
+La minería requiere autorización del Estado. Muchas zonas del Escudo de Guayana están dentro de parques nacionales o territorios indígenas, donde la actividad es ilegal, y la comercialización de diamantes exige certificación del Proceso de Kimberley. KravenOps marca esas áreas en rojo y no reemplaza permisos ni asesoría legal.
