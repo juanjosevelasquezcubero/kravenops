@@ -364,6 +364,9 @@ export default function HomeScreen() {
           <Pressable style={[styles.button, styles.secondary]} onPress={() => router.push('/settings')}>
             <ThemedText>⚙️ Ajustes</ThemedText>
           </Pressable>
+          <Pressable style={[styles.button, styles.secondary]} onPress={() => router.push('/diagnostico')}>
+            <ThemedText>🔧 Diagnóstico do motor</ThemedText>
+          </Pressable>
         </View>
 
         <View style={styles.legend}>

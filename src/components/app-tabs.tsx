@@ -27,6 +27,7 @@ export default function AppTabs() {
       <Tabs.Screen name="camera" options={{ title: 'Câmera', tabBarIcon: tabIcon('📷') }} />
       <Tabs.Screen name="history" options={{ title: 'Histórico', tabBarIcon: tabIcon('📜') }} />
       <Tabs.Screen name="settings" options={{ title: 'Ajustes', tabBarIcon: tabIcon('⚙️') }} />
+      <Tabs.Screen name="diagnostico" options={{ title: 'Motor', tabBarIcon: tabIcon('🔧') }} />
     </Tabs>
   );
 }
